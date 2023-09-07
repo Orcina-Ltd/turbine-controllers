@@ -1,0 +1,5 @@
+LIBRARY   BladedControllerWrapper
+EXPORTS
+    InitializeOrcFxAPI
+    RegisterCapabilities
+    BladedController
