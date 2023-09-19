@@ -299,7 +299,7 @@ class ControllerEngine(object):
             self.torque = -self.torqueCom / 1000.0 * self.momentScaleFactor
 
 
-class BaseController(object):
+class PythonController(object):
     def Initialise(self, info):
         key = info.ModelObject.handle.value
         controller = info.Workspace.get(key, None)
@@ -315,20 +315,17 @@ class BaseController(object):
 
     def Calculate(self, info):
         self.controller.update(info)
+        if info.DataName == "GeneratorTorqueController":
+            info.Value = self.controller.torque
+        elif info.DataName == "PitchController":
+            info.StructValue.Value = self.controller.pitch
+            info.StructValue.Velocity = self.controller.pitchDot
+            info.StructValue.Acceleration = self.controller.pitchDotDot
+        else:
+            raise Exception(
+                "Turbine controller can only be used to control pitch or torque."
+            )
 
     def StoreState(self, info):
         self.controller.storeState(info)
 
-
-class PitchController(BaseController):
-    def Calculate(self, info):
-        super().Calculate(info)
-        info.StructValue.Value = self.controller.pitch
-        info.StructValue.Velocity = self.controller.pitchDot
-        info.StructValue.Acceleration = self.controller.pitchDotDot
-
-
-class TorqueController(BaseController):
-    def Calculate(self, info):
-        super().Calculate(info)
-        info.Value = self.controller.torque
