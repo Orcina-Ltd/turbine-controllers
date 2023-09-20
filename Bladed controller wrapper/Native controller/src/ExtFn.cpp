@@ -310,7 +310,8 @@ private:
 
     bool convertTo8bitText(const std::wstring input, char* output, size_t outputLen)
     {
-        return WideCharToMultiByte(codePage, WC_ERR_INVALID_CHARS, input.c_str(), input.size(), output, outputLen, nullptr, nullptr);
+        BOOL usedDefaultChar;
+        return WideCharToMultiByte(codePage, 0, input.c_str(), input.size(), output, outputLen, nullptr, &usedDefaultChar) && !usedDefaultChar;
     }
 
     bool tryGetBoolFromTag(OrcaFlexObject& modelObject, const std::wstring name, bool& value)
