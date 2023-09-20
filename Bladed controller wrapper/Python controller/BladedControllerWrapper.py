@@ -8,7 +8,7 @@ import shutil
 import json
 
 StringLength = 1024
-encoding = "ascii"
+encoding = f"cp{ctypes.windll.kernel32.GetACP()}"
 
 
 def getBooleanTagValue(modelObject, name):

@@ -305,13 +305,10 @@ private:
         return result;
     }
 
-    const UINT codePage = 20127; // ascii
-    const std::string encodingName = "ASCII";
-
     bool convertTo8bitText(const std::wstring input, char* output, size_t outputLen)
     {
         BOOL usedDefaultChar;
-        return WideCharToMultiByte(codePage, 0, input.c_str(), input.size(), output, outputLen, nullptr, &usedDefaultChar) && !usedDefaultChar;
+        return WideCharToMultiByte(GetACP(), 0, input.c_str(), input.size(), output, outputLen, nullptr, &usedDefaultChar) && !usedDefaultChar;
     }
 
     bool tryGetBoolFromTag(OrcaFlexObject& modelObject, const std::wstring name, bool& value)
@@ -444,14 +441,14 @@ private:
     {
         std::wstring value;
         if (turbine.tryGetTag(L"InputFile", value) && !convertTo8bitText(fs::path(modelDirectory) / value, accInfile, STRINGLENGTH))
-            throw std::runtime_error("Could not convert input file name to " + encodingName + ".");
+            throw std::runtime_error("Could not convert input file name to 8 bit text.");
 
         /* Specify a file name that dll output can be written to. In this example, we combine the
            model name, the turbine object name and add 5 extra characters. In the specific case of
            the ROSCO control dll, these extra characters will be removed and replace with 'RO.dbg' */
         value = fs::path(modelFileName).replace_extension("").generic_wstring() + L"_" + turbine.getName() + L"_     ";
         if (!convertTo8bitText(value, avcOutfile, STRINGLENGTH))
-            throw std::runtime_error("Could not convert output file name to " + encodingName + ".");
+            throw std::runtime_error("Could not convert output file name to 8 bit text.");
     }
 
     void loadDll()
