@@ -174,11 +174,14 @@ public:
         setRecord(23, dllTorque);
         setRecord(15, dllTorque * icd->GeneratorAngVel); // power not factored by efficiency
 
-        // root out of plane bending moment, DLL assumed to work in Nm
+        // root in/out of plane bending moment, DLL assumed to work in Nm
         for (int bladeIndex = 0; bladeIndex < controlledBladeCount; bladeIndex++)
         {
-            double ofMoment = turbine.TimeHistory(L"Root connection Ey moment", pnInstantaneousValue, ObjectExtra::Turbine(1 + bladeIndex))[0];
-            setRecord(30 + bladeIndex, -ofMoment * 1000 / momentScaleFactor);
+            ObjectExtra oeBlade = ObjectExtra::Turbine(1 + bladeIndex);
+            double ofMomentEx = turbine.TimeHistory(L"Root connection Ex moment", pnInstantaneousValue, oeBlade)[0];
+            setRecord(69 + bladeIndex, -ofMomentEx * 1000 / momentScaleFactor);
+            double ofMomentEy = turbine.TimeHistory(L"Root connection Ey moment", pnInstantaneousValue, oeBlade)[0];
+            setRecord(30 + bladeIndex, -ofMomentEy * 1000 / momentScaleFactor);
         }
 
         // "nodding" acceleration
@@ -193,6 +196,17 @@ public:
         }
         setRecord(53, accelWrtTurbineRelGlobal.Z / accelerationScaleFactor); // translational
         setRecord(83, -angAccelWrtTurbineRelGlobal.Y); // rotational, -ve convert to FAST coordinate system
+
+        // hub moments
+        double ofMomentLy = turbine.TimeHistory(L"Connection Ly moment", pnInstantaneousValue)[0];
+        // assumes: DLL in Nm; ofx turbine Ly = -ve DLL Ly; and DLL load is rotor
+        // side to gen side (whereas ofx connection load is parent to child)
+        setRecord(75, ofMomentLy * 1000 / momentScaleFactor);
+
+        double ofMomentLx = turbine.TimeHistory(L"Connection Lx moment", pnInstantaneousValue)[0];
+        // assumes: DLL in Nm; ofx turbine Lx = DLL Lz; and DLL load is rotor
+        // side to gen side (whereas ofx connection load is parent to child)
+        setRecord(76, -ofMomentLx * 1000 / momentScaleFactor);
 
         callDll();
 
@@ -251,6 +265,16 @@ public:
             }
         }
     }
+
+    double getYaw()
+    {
+        return yaw;
+    };
+
+    double getYawDot()
+    {
+        return yawDot;
+    };
 
     int addref()
     {
@@ -603,6 +627,78 @@ void __stdcall BladedController(TExtFnInfo& info)
                 C_RecordExternalFunctionError(&info, error.c_str(), &status); // ignore status
                 return;
             }
+            break;
+        }
+        }
+    }
+    catch(const std::exception& exc)
+    {
+        int status;
+        std::wstring msg = L"Unexpected error, " + utf8ToUtf16(exc.what());
+        C_RecordExternalFunctionError(&info, msg.c_str(), &status); // ignore status
+    }
+}
+
+void __stdcall YawController(TExtFnInfo& info)
+{
+    try
+    {
+        switch(info.Action)
+        {
+        case eaInitialise:
+        {
+            int status;
+            OrcaFlexObject modelObject(info.ObjectHandle);
+            std::wstring objectName = modelObject.GetDataString(L"Name");
+            std::wstring turbineName;
+            if (!modelObject.tryGetTag(L"TurbineName", turbineName))
+                throw std::runtime_error(
+                  "to use the constraint '" + utf16ToUtf8(objectName) + "' to impose yaw controller demand, "
+                  "it must have an object tag named 'TurbineName', which should contain the associated turbine object name. "
+                  "No such tag was found."
+                );
+
+            TObjectInfo objectInfo;
+            C_ObjectCalled(info.ModelHandle, turbineName.c_str(), &objectInfo, &status);
+            std::wstring msg = L"The '" + objectName + L"' constraint is being used to impose yaw controller demand for '" +
+                               turbineName + L"'. However, this turbine cannot be found in the model. Please review the 'TurbineName' object "
+                               L"tag for '" + objectName + L"', ";
+            if (!checkStatus(info, msg, status))
+                return;
+
+            info.lpData = static_cast<void*>(objectInfo.ObjectHandle);
+            break;
+        }
+        case eaCalculate:
+        {
+            int status;
+
+            TOrcFxAPIHandle turbineHandle = static_cast<TOrcFxAPIHandle>(info.lpData);
+            INT_PTR controllerPtr = C_GetNamedValue(turbineHandle, controllerKeyName, &status);
+            if (!checkStatus(info, L"Call to C_GetNamedValue from eaCalculate", status))
+                return;
+
+            Controller *controller;
+            if (controllerPtr)
+                controller = reinterpret_cast<Controller*>(controllerPtr);
+            else
+                throw std::runtime_error("the turbine's controller was not found. Ensure controllers are active for the associated turbine object.");
+
+            double yaw = controller->getYaw();
+            double yawDot = controller->getYawDot();
+
+            double c = cos(yaw);
+            double s = sin(yaw);
+
+            TExternallyCalculatedImposedMotionStructValue* motionValue = 
+                static_cast<TExternallyCalculatedImposedMotionStructValue*>(info.lpStructValue);
+
+            motionValue->Orientation = {
+                { c, s, 0 },
+                { -s, c, 0 },
+                { 0, 0, 1 }
+            };
+            motionValue->AngularVelocity = { 0.0, 0.0, yawDot };
             break;
         }
         }

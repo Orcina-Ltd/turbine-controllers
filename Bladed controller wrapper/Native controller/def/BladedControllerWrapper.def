@@ -3,3 +3,4 @@ EXPORTS
     InitializeOrcFxAPI
     RegisterCapabilities
     BladedController
+    YawController
