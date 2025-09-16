@@ -338,6 +338,8 @@ ViewParameters::operator const TViewParameters () const
     result.MonochromeOutput = monochromeOutput;
     result.AddDetailsToOutput = addDetailsToOutput;
     result.JpegCompressionQuality = jpegCompressionQuality;
+    result.PixelsPerInch = pixelsPerInch;
+    result.DrawSupportCylinderAxes = drawSupportCylinderAxes;
     return result;
 }
 
@@ -1105,6 +1107,28 @@ void OrcaFlexModel::DestroyObject(OrcaFlexObject object)
     checkStatus(status);
 }
 
+void OrcaFlexModel::CreateClones(const std::vector<OrcaFlexObject> objects, const OrcaFlexModel* model)
+{
+    std::vector<TOrcFxAPIHandle> objectHandles;
+    for (OrcaFlexObject item : objects)
+    {
+        objectHandles.push_back(item.handle);
+    }
+    int status;
+    C_CreateClone3(handle, static_cast<int>(objectHandles.size()), objectHandles.data(), model ? model->handle : nullptr, &status);
+    checkStatus(status);
+}
+
+void OrcaFlexModel::CreateClones(const std::vector<OrcaFlexObject> objects, OrcaFlexModel& model)
+{
+    CreateClones(objects, &model);
+}
+
+void OrcaFlexModel::CreateClones(const std::vector<OrcaFlexObject> objects)
+{
+    CreateClones(objects, nullptr);
+}
+
 void OrcaFlexModel::DeleteUnusedTypes()
 {
     int status;
@@ -1274,6 +1298,14 @@ void OrcaFlexModel::SaveModelView(const std::wstring& fileName, const ViewParame
     int status;
     TViewParameters apiViewParameters = viewParameters;
     C_SaveModel3DViewBitmapToFile(handle, &apiViewParameters, fileName.c_str(), &status);
+    checkStatus(status);
+}
+
+void OrcaFlexModel::SaveModelViewMetafile(const std::wstring& fileName, const ViewParameters& viewParameters) const
+{
+    int status;
+    TViewParameters apiViewParameters = viewParameters;
+    C_SaveModel3DViewMetafileToFile(handle, &apiViewParameters, fileName.c_str(), &status);
     checkStatus(status);
 }
 

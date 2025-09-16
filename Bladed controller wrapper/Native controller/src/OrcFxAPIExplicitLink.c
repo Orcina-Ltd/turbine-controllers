@@ -87,6 +87,21 @@ void __stdcall C_CreateClone2(
     proc(SourceObjectHandle, DestModelHandle, lpClonedObjectHandle, lpStatus);
 }
 
+void __stdcall C_CreateClone3(
+    TOrcFxAPIHandle SourceModelHandle,
+    int SourceObjectCount,
+    TOrcFxAPIHandle *lpSourceObjectHandles,
+    TOrcFxAPIHandle DestModelHandle,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(TOrcFxAPIHandle SourceModelHandle, int SourceObjectCount, TOrcFxAPIHandle *lpSourceObjectHandles, TOrcFxAPIHandle DestModelHandle, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_CreateClone3");
+    proc(SourceModelHandle, SourceObjectCount, lpSourceObjectHandles, DestModelHandle, lpStatus);
+}
+
 void __stdcall C_CreateModel(
     TOrcFxAPIHandle *lpModelHandle,
     HWND hCaller,
@@ -649,6 +664,20 @@ INT_PTR __stdcall C_GetNamedValueW(
     return proc(ObjectHandle, lpName, lpStatus);
 }
 
+void __stdcall C_GetNearestNodeArclength(
+    TOrcFxAPIHandle ObjectHandle,
+    const double TargetArclength,
+    double *lpActualArclength,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(TOrcFxAPIHandle ObjectHandle, const double TargetArclength, double *lpActualArclength, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_GetNearestNodeArclength");
+    proc(ObjectHandle, TargetArclength, lpActualArclength, lpStatus);
+}
+
 void __stdcall C_GetNodeArclengths(
     TOrcFxAPIHandle ObjectHandle,
     double *lpNodeArclengths,
@@ -661,6 +690,34 @@ void __stdcall C_GetNodeArclengths(
     if (proc == NULL)
         proc = (Proc)GetProcAddress(_Module, "C_GetNodeArclengths");
     proc(ObjectHandle, lpNodeArclengths, lpNodeCount, lpStatus);
+}
+
+void __stdcall C_GetNodePreBendGeometry(
+    TOrcFxAPIHandle ObjectHandle,
+    TNodePreBendGeometry *lpGeometry,
+    int *lpNodeCount,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(TOrcFxAPIHandle ObjectHandle, TNodePreBendGeometry *lpGeometry, int *lpNodeCount, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_GetNodePreBendGeometry");
+    proc(ObjectHandle, lpGeometry, lpNodeCount, lpStatus);
+}
+
+void __stdcall C_GetNodeSeabedFrictionTargetPositions(
+    TOrcFxAPIHandle ObjectHandle,
+    TVector *lpNodeTargetPositions,
+    int *lpNodeCount,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(TOrcFxAPIHandle ObjectHandle, TVector *lpNodeTargetPositions, int *lpNodeCount, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_GetNodeSeabedFrictionTargetPositions");
+    proc(ObjectHandle, lpNodeTargetPositions, lpNodeCount, lpStatus);
 }
 
 int __stdcall C_GetNumOfWarnings(
@@ -2391,6 +2448,49 @@ void __stdcall C_SaveModel3DViewBitmapToFileW(
     proc(ModelHandle, lpViewParameters, lpFileName, lpStatus);
 }
 
+void __stdcall C_SaveModel3DViewMetafileMem(
+    TOrcFxAPIHandle ModelHandle,
+    const TViewParameters *lpViewParameters,
+    TOrcFxAPIHandle *lpBufferHandle,
+    int64_t *lpBufferLen,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(TOrcFxAPIHandle ModelHandle, const TViewParameters *lpViewParameters, TOrcFxAPIHandle *lpBufferHandle, int64_t *lpBufferLen, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_SaveModel3DViewMetafileMem");
+    proc(ModelHandle, lpViewParameters, lpBufferHandle, lpBufferLen, lpStatus);
+}
+
+void __stdcall C_SaveModel3DViewMetafileToFileA(
+    TOrcFxAPIHandle ModelHandle,
+    const TViewParameters *lpViewParameters,
+    LPCSTR lpFileName,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(TOrcFxAPIHandle ModelHandle, const TViewParameters *lpViewParameters, LPCSTR lpFileName, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_SaveModel3DViewMetafileToFileA");
+    proc(ModelHandle, lpViewParameters, lpFileName, lpStatus);
+}
+
+void __stdcall C_SaveModel3DViewMetafileToFileW(
+    TOrcFxAPIHandle ModelHandle,
+    const TViewParameters *lpViewParameters,
+    LPCWSTR lpFileName,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(TOrcFxAPIHandle ModelHandle, const TViewParameters *lpViewParameters, LPCWSTR lpFileName, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_SaveModel3DViewMetafileToFileW");
+    proc(ModelHandle, lpViewParameters, lpFileName, lpStatus);
+}
+
 void __stdcall C_SetSimulationDrawTime(
     TOrcFxAPIHandle ModelHandle,
     double SimulationDrawTime,
@@ -2981,6 +3081,18 @@ void __stdcall C_CreateFatigue(
     proc(lpFatigueHandle, lpStatus);
 }
 
+void __stdcall C_CreateLocalExtrema(
+    TOrcFxAPIHandle *lpLocalExtremaHandle,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(TOrcFxAPIHandle *lpLocalExtremaHandle, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_CreateLocalExtrema");
+    proc(lpLocalExtremaHandle, lpStatus);
+}
+
 void __stdcall C_CreateTimeHistorySummary(
     int TimeHistorySummaryType,
     int NumOfSamples,
@@ -3062,6 +3174,18 @@ void __stdcall C_DestroyFatigue(
     if (proc == NULL)
         proc = (Proc)GetProcAddress(_Module, "C_DestroyFatigue");
     proc(FatigueHandle, lpStatus);
+}
+
+void __stdcall C_DestroyLocalExtrema(
+    TOrcFxAPIHandle LocalExtremaHandle,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(TOrcFxAPIHandle LocalExtremaHandle, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_DestroyLocalExtrema");
+    proc(LocalExtremaHandle, lpStatus);
 }
 
 void __stdcall C_DestroyTimeHistorySummary(
@@ -4551,6 +4675,24 @@ void __stdcall C_GetDiffractionWaveComponents(
     proc(DiffractionHandle, lpCount, lpWaveComponents, lpStatus);
 }
 
+void __stdcall C_GetPanelPressureTimeHistory(
+    TOrcFxAPIHandle VesselHandle,
+    TOrcFxAPIHandle DiffractionHandle,
+    int ResultPanelsCount,
+    const int *lpResultPanels,
+    const TPeriod *lpPeriod,
+    const TPanelPressureTimeHistoryParameters *lpParameters,
+    double *lpOutput,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(TOrcFxAPIHandle VesselHandle, TOrcFxAPIHandle DiffractionHandle, int ResultPanelsCount, const int *lpResultPanels, const TPeriod *lpPeriod, const TPanelPressureTimeHistoryParameters *lpParameters, double *lpOutput, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_GetPanelPressureTimeHistory");
+    proc(VesselHandle, DiffractionHandle, ResultPanelsCount, lpResultPanels, lpPeriod, lpParameters, lpOutput, lpStatus);
+}
+
 void __stdcall C_LoadDiffractionDataA(
     TOrcFxAPIHandle DiffractionHandle,
     LPCSTR lpFileName,
@@ -4630,6 +4772,34 @@ void __stdcall C_LoadDiffractionResultsMem(
     if (proc == NULL)
         proc = (Proc)GetProcAddress(_Module, "C_LoadDiffractionResultsMem");
     proc(DiffractionHandle, lpBuffer, BufferLen, lpStatus);
+}
+
+void __stdcall C_LocalExtremaAddSamples(
+    TOrcFxAPIHandle LocalExtremaHandle,
+    const double *lpValues,
+    int Count,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(TOrcFxAPIHandle LocalExtremaHandle, const double *lpValues, int Count, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_LocalExtremaAddSamples");
+    proc(LocalExtremaHandle, lpValues, Count, lpStatus);
+}
+
+void __stdcall C_LocalExtremaGet(
+    TOrcFxAPIHandle LocalExtremaHandle,
+    int *lpIndices,
+    int *lpCount,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(TOrcFxAPIHandle LocalExtremaHandle, int *lpIndices, int *lpCount, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_LocalExtremaGet");
+    proc(LocalExtremaHandle, lpIndices, lpCount, lpStatus);
 }
 
 void __stdcall C_NewDiffractionA(
@@ -4777,6 +4947,36 @@ void __stdcall C_SaveDiffractionResultsMem(
     if (proc == NULL)
         proc = (Proc)GetProcAddress(_Module, "C_SaveDiffractionResultsMem");
     proc(DiffractionHandle, lpBufferHandle, lpBufferLen, lpStatus);
+}
+
+void __stdcall C_SaveSymmetrisedDiffractionBodyMeshA(
+    TOrcFxAPIHandle DiffractionHandle,
+    int Symmetry,
+    double ClippingTolerance,
+    LPCSTR lpFileName,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(TOrcFxAPIHandle DiffractionHandle, int Symmetry, double ClippingTolerance, LPCSTR lpFileName, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_SaveSymmetrisedDiffractionBodyMeshA");
+    proc(DiffractionHandle, Symmetry, ClippingTolerance, lpFileName, lpStatus);
+}
+
+void __stdcall C_SaveSymmetrisedDiffractionBodyMeshW(
+    TOrcFxAPIHandle DiffractionHandle,
+    int Symmetry,
+    double ClippingTolerance,
+    LPCWSTR lpFileName,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(TOrcFxAPIHandle DiffractionHandle, int Symmetry, double ClippingTolerance, LPCWSTR lpFileName, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_SaveSymmetrisedDiffractionBodyMeshW");
+    proc(DiffractionHandle, Symmetry, ClippingTolerance, lpFileName, lpStatus);
 }
 
 void __stdcall C_SetDiffractionProgressHandler(

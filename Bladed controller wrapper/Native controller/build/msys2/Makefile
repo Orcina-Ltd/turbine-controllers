@@ -19,7 +19,7 @@ flags = -c -O3 -Wall -I../../include -DUNICODE -D_UNICODE
 all: $(outdir)/BladedControllerWrapper.dll
 
 $(outdir)/BladedControllerWrapper.dll: $(objects) $(def)
-	g++ $(objects) $(def) -lm -lole32 -shared -static -o $@ -Wl,--out-implib,$@.a
+	g++ $(objects) $(def) -lm -lole32 -shared -static -o $@ -Wl,--enable-stdcall-fixup -Wl,--out-implib,$@.a
 	strip --strip-unneeded $@
 
 $(outdir)/%.o: ../../src/%.c $(includes)

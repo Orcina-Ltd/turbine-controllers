@@ -164,7 +164,7 @@ public:
         drawOutOfBalanceForces(), drawNodeAxes(), graphicsMode(), fileFormat(), viewGamma(),
         relativeToObjectHandle(), disturbanceVesselHandle(), disturbancePosition(), shadedFillMode(),
         drawNameLabels(), drawConnections(), labelScale(), drawOrigins(), monochromeOutput(),
-        addDetailsToOutput(), jpegCompressionQuality() {};
+        addDetailsToOutput(), jpegCompressionQuality(), pixelsPerInch(), drawSupportCylinderAxes() {};
     ViewParameters(const TViewParameters& params)
         : viewSize(params.ViewSize), viewAzimuth(params.ViewAzimuth), viewElevation(params.ViewElevation),
         viewCentre(params.ViewCentre), height(params.Height), width(params.Width),
@@ -177,7 +177,8 @@ public:
         disturbancePosition(params.DisturbancePosition), shadedFillMode(params.ShadedFillMode),
         drawNameLabels(params.DrawNameLabels), drawConnections(params.DrawConnections), labelScale(params.LabelScale),
         drawOrigins(params.DrawOrigins), monochromeOutput(params.MonochromeOutput),
-        addDetailsToOutput(params.AddDetailsToOutput), jpegCompressionQuality(params.JpegCompressionQuality) {};
+        addDetailsToOutput(params.AddDetailsToOutput), jpegCompressionQuality(params.JpegCompressionQuality),
+        pixelsPerInch(params.PixelsPerInch), drawSupportCylinderAxes(params.DrawSupportCylinderAxes) {};
     operator const TViewParameters () const;
 public:
     double viewSize;
@@ -208,6 +209,8 @@ public:
     BOOL monochromeOutput;
     BOOL addDetailsToOutput;
     int jpegCompressionQuality;
+    int pixelsPerInch;
+    BOOL drawSupportCylinderAxes;
 };
 
 class HandleObject
@@ -350,6 +353,8 @@ public:
     OrcaFlexObject CreateObject(int type);
     OrcaFlexObject CreateObject(int type, const std::wstring& name);
     void DestroyObject(OrcaFlexObject object);
+    void CreateClones(const std::vector<OrcaFlexObject> objects, OrcaFlexModel& model);
+    void CreateClones(const std::vector<OrcaFlexObject> objects);
     void DeleteUnusedTypes();
     void DeleteUnusedVariableDataSources();
     std::vector<OrcaFlexObject> getObjects() const;
@@ -370,6 +375,7 @@ public:
     void setSimulationDrawTime(double value);
     ViewParameters getDefaultViewParameters() const;
     void SaveModelView(const std::wstring& fileName, const ViewParameters& viewParameters) const;
+    void SaveModelViewMetafile(const std::wstring& fileName, const ViewParameters& viewParameters) const;
     HBITMAP GetModelView(const std::wstring& fileName, const ViewParameters& viewParameters) const;
     void Reset();
     void Clear();
@@ -395,6 +401,7 @@ private:
     Period getDefaultPeriod() const;
     TSimulationTimeStatus getSimulationTimeStatus() const;
     void RunSimulation(const TRunSimulationParameters* params);
+    void CreateClones(const std::vector<OrcaFlexObject> objects, const OrcaFlexModel* model);
 private:
     ProgressHandlerCallback progressHandlerCallback;
     StaticsProgressHandlerCallback staticsProgressHandler;
