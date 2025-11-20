@@ -46,7 +46,7 @@ std::wstring DLLVersion()
 {
     int status;
     int OK;
-    TDLLVersion version;
+    TDLLVersion version = { 0 };
     C_GetDLLVersion(nullptr, &version, &OK, &status);
     checkStatus(status);
     return version;
@@ -278,6 +278,7 @@ ObjectExtra::operator const TObjectExtra2 () const
     result.NodeNum = nodeNum;
     result.ArcLength = arclength;
     result.RadialPos = radialPos;
+    result.r = r;
     result.Theta = theta;
     result.WingName = wingName.c_str();
     result.ClearanceLineName = clearanceLineName.c_str();
@@ -289,6 +290,7 @@ ObjectExtra::operator const TObjectExtra2 () const
     result.SupportedLineName = supportedLineName.c_str();
     result.BladeIndex = bladeIndex;
     result.ElementIndex = elementIndex;
+    result.FrequencyDomainSolveType = frequencyDomainSolveType;
     return result;
 }
 
@@ -340,7 +342,48 @@ ViewParameters::operator const TViewParameters () const
     result.JpegCompressionQuality = jpegCompressionQuality;
     result.PixelsPerInch = pixelsPerInch;
     result.DrawSupportCylinderAxes = drawSupportCylinderAxes;
+    result.DrawTrails = drawTrails;
+    result.FilterHandle = filterHandle;
     return result;
+}
+
+// ViewFilter
+
+void ViewFilter::init(TOrcFxAPIHandle filterHandle, bool ownsFilterHandle)
+{
+    handle = filterHandle;
+    ownsHandle = ownsFilterHandle;
+}
+
+ViewFilter::ViewFilter(TOrcFxAPIHandle filterHandle) : HandleObject(nullptr)
+{
+    init(filterHandle, false);
+};
+
+ViewFilter::ViewFilter() : HandleObject(nullptr)
+{
+    int status;
+    TOrcFxAPIHandle filterHandle;
+    C_CreateViewFilter(&filterHandle, &status);
+    checkStatus(status);
+    init(filterHandle, true);
+};
+
+ViewFilter::~ViewFilter()
+{
+    if (ownsHandle)
+    {
+        int status;
+        C_DestroyViewFilter(handle, &status);
+        checkStatus(status);
+    }
+};
+
+void ViewFilter::Add(const std::wstring& propertyName, const std::wstring& action, const std::wstring& namePattern, const std::wstring& typePattern)
+{
+    int status;
+    C_ViewFilterAddItem(handle, propertyName.c_str(), action.c_str(), namePattern.c_str(), typePattern.c_str(), &status);
+    checkStatus(status);
 }
 
 // DataObject
@@ -596,11 +639,11 @@ double DataObject::UnitsConversionFactor(const std::wstring& units)
 
 // OrcaFlexObject
 
-OrcaFlexObject OrcaFlexObject::CreateClone(const std::wstring& name, TOrcFxAPIHandle modelHandle) const
+OrcaFlexObject OrcaFlexObject::CreateClone(const std::wstring& name, TOrcFxAPIHandle destModelHandle) const
 {
     int status;
     TOrcFxAPIHandle clonedObjectHandle;
-    C_CreateClone2(handle, modelHandle, &clonedObjectHandle, &status);
+    C_CreateClone2(handle, destModelHandle, &clonedObjectHandle, &status);
     checkStatus(status);
 
     OrcaFlexObject result = OrcaFlexObject(handle, clonedObjectHandle, type);
@@ -706,6 +749,21 @@ std::wstring OrcaFlexObject::getTag(const std::wstring name) const
     return value;
 }
 
+INT_PTR OrcaFlexObject::getNamedValue(const std::wstring name) const
+{
+    int status;
+    INT_PTR result = C_GetNamedValue(handle, name.c_str(), &status);
+    checkStatus(status);
+    return result;
+}
+
+void OrcaFlexObject::setNamedValue(const std::wstring name, const INT_PTR value)
+{
+    int status;
+    C_SetNamedValue(handle, name.c_str(), value, &status);
+    checkStatus(status);
+}
+
 static const wchar_t* EnumerateVarsBackrefName = L"__EnumerateVarsBackref";
 
 void __stdcall EnumerateVarsProc(const TVarInfo* varInfo)
@@ -801,7 +859,7 @@ int OrcaFlexObject::getNumOfSamples(const TPeriod* period) const
     return result;
 }
 
-std::vector<double> OrcaFlexObject::TimeHistory(const std::wstring& varName, const TObjectExtra2* objectExtra, const TPeriod* period) const
+std::vector<double> OrcaFlexObject::TimeHistory(const std::wstring& varName, const TPeriod* period, const TObjectExtra2* objectExtra) const
 {
     int status;
     std::vector<double> result(getNumOfSamples(period));
@@ -814,26 +872,26 @@ std::vector<double> OrcaFlexObject::TimeHistory(const std::wstring& varName, con
 {
     const TPeriod apiPeriod = period;
     const TObjectExtra2 apiObjectExtra = objectExtra;
-    return TimeHistory(varName, &apiObjectExtra, &apiPeriod);
+    return TimeHistory(varName, &apiPeriod, &apiObjectExtra);
 }
 
 std::vector<double> OrcaFlexObject::TimeHistory(const std::wstring& varName, const ObjectExtra& objectExtra) const
 {
     const TPeriod apiPeriod = getDefaultPeriod();
     const TObjectExtra2 apiObjectExtra = objectExtra;
-    return TimeHistory(varName, &apiObjectExtra, &apiPeriod);
+    return TimeHistory(varName, &apiPeriod, &apiObjectExtra);
 }
 
 std::vector<double> OrcaFlexObject::TimeHistory(const std::wstring& varName, const Period& period) const
 {
     const TPeriod apiPeriod = period;
-    return TimeHistory(varName, nullptr, &apiPeriod);
+    return TimeHistory(varName, &apiPeriod, nullptr);
 }
 
 std::vector<double> OrcaFlexObject::TimeHistory(const std::wstring& varName) const
 {
     const TPeriod apiPeriod = getDefaultPeriod();
-    return TimeHistory(varName, nullptr, &apiPeriod);
+    return TimeHistory(varName, &apiPeriod, nullptr);
 }
 
 double OrcaFlexObject::StaticResult(const std::wstring& varName, const TObjectExtra2* objectExtra) const
@@ -1203,6 +1261,21 @@ OrcaFlexObject OrcaFlexModel::getEnvironment() const
     return OrcaFlexObject(handle, objectHandle, otEnvironment);
 }
 
+INT_PTR OrcaFlexModel::getNamedValue(const std::wstring name) const
+{
+    int status;
+    INT_PTR result = C_GetNamedValue(handle, name.c_str(), &status);
+    checkStatus(status);
+    return result;
+}
+
+void OrcaFlexModel::setNamedValue(const std::wstring name, const INT_PTR value)
+{
+    int status;
+    C_SetNamedValue(handle, name.c_str(), value, &status);
+    checkStatus(status);
+}
+
 int OrcaFlexModel::getThreadCount() const
 {
     int status;
@@ -1269,6 +1342,21 @@ bool OrcaFlexModel::getSimulationComplete() const
     return result != 0;
 }
 
+int OrcaFlexModel::getSimulationDrawFrequencyDomainSolveType() const
+{
+    int status;
+    int result = C_GetSimulationDrawFrequencyDomainSolveType(handle, &status);
+    checkStatus(status);
+    return result;
+}
+
+void OrcaFlexModel::setSimulationDrawFrequencyDomainSolveType(int value)
+{
+    int status;
+    C_SetSimulationDrawFrequencyDomainSolveType(handle, value, &status);
+    checkStatus(status);
+}
+
 double OrcaFlexModel::getSimulationDrawTime() const
 {
     int status;
@@ -1301,6 +1389,22 @@ void OrcaFlexModel::SaveModelView(const std::wstring& fileName, const ViewParame
     checkStatus(status);
 }
 
+std::vector<unsigned char> OrcaFlexModel::SaveModelViewMem(const ViewParameters& viewParameters) const
+{
+    int status;
+    TViewParameters apiViewParameters = viewParameters;
+    TOrcFxAPIHandle bufferHandle;
+    int64_t bufferLen;
+    C_SaveModel3DViewBitmapMem(handle, &apiViewParameters, &bufferHandle, &bufferLen, &status);
+    checkStatus(status);
+    std::vector<unsigned char> result(static_cast<const unsigned int>(bufferLen));
+    C_CopyBuffer(bufferHandle, &result[0], bufferLen, &status);
+    int tmpStatus;
+    C_FreeBuffer(bufferHandle, &tmpStatus);
+    checkStatus(status);
+    return result;
+}
+
 void OrcaFlexModel::SaveModelViewMetafile(const std::wstring& fileName, const ViewParameters& viewParameters) const
 {
     int status;
@@ -1309,7 +1413,7 @@ void OrcaFlexModel::SaveModelViewMetafile(const std::wstring& fileName, const Vi
     checkStatus(status);
 }
 
-HBITMAP OrcaFlexModel::GetModelView(const std::wstring& fileName, const ViewParameters& viewParameters) const
+HBITMAP OrcaFlexModel::GetModelView(const ViewParameters& viewParameters) const
 {
     int status;
     HBITMAP result;
@@ -1408,7 +1512,7 @@ void OrcaFlexModel::CalculateStatics()
     checkStatus(status);
 }
 
-void OrcaFlexModel::UseCalculatedPositions(bool setLinesToUserSpecifiedStartingShape)
+void OrcaFlexModel::UseCalculatedPositions(bool setLinesToUserSpecifiedStartingShape, double simulationTime)
 {
     int status;
     TUseCalculatedPositionsForStaticsParameters params = { sizeof(params) };
@@ -1416,13 +1520,24 @@ void OrcaFlexModel::UseCalculatedPositions(bool setLinesToUserSpecifiedStartingS
     checkStatus(status);
 
     params.SetLinesToUserSpecifiedStartingShape = setLinesToUserSpecifiedStartingShape;
+    params.SimulationTime = simulationTime;
     C_UseCalculatedPositionsForStatics(handle, &params, &status);
     checkStatus(status);
 }
 
+void OrcaFlexModel::UseCalculatedPositions(bool setLinesToUserSpecifiedStartingShape)
+{
+    UseCalculatedPositions(setLinesToUserSpecifiedStartingShape, OrcinaDefaultReal());
+}
+
+void OrcaFlexModel::UseCalculatedPositions(double simulationTime)
+{
+    UseCalculatedPositions(false, simulationTime);
+}
+
 void OrcaFlexModel::UseCalculatedPositions()
 {
-    UseCalculatedPositions(false);
+    UseCalculatedPositions(false, OrcinaDefaultReal());
 }
 
 static const wchar_t* DynamicsProgressHandlerBackrefName = L"__DynamicsProgressHandlerBackref";

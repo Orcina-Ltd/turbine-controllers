@@ -297,11 +297,10 @@ class Controller(object):
         self.setRecord(24, numpy.radians(self.yawError))
 
         # nacelle yaw angle from North
-        if info.Model.general.NorthDirection is None:
-            # assume 180 deg, so 0 deg wind is from North.
+        azimuthNorth = info.Model.general.NorthDirection
+        if azimuthNorth is None or azimuthNorth == OrcFxAPI.OrcinaDefaultReal():
+            # assume 180 deg, so 0 deg wind is from north
             azimuthNorth = 180.0
-        else:
-            azimuthNorth = info.Model.general.NorthDirection
 
         self.nacelleYaw = suppressRangeJumps(
             self.nacelleYaw,

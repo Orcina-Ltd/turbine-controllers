@@ -1329,6 +1329,72 @@ void __stdcall C_SaveExternalProgramFileW(
     proc(ObjectHandle, FileType, lpParameters, lpFileName, lpStatus);
 }
 
+void __stdcall C_SavePanelMeshA(
+    int PanelCount,
+    TPanel *lpPanels,
+    int Format,
+    void *lpHeader,
+    LPCSTR lpFileName,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(int PanelCount, TPanel *lpPanels, int Format, void *lpHeader, LPCSTR lpFileName, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_SavePanelMeshA");
+    proc(PanelCount, lpPanels, Format, lpHeader, lpFileName, lpStatus);
+}
+
+void __stdcall C_SavePanelMeshW(
+    int PanelCount,
+    TPanel *lpPanels,
+    int Format,
+    void *lpHeader,
+    LPCSTR lpFileName,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(int PanelCount, TPanel *lpPanels, int Format, void *lpHeader, LPCSTR lpFileName, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_SavePanelMeshW");
+    proc(PanelCount, lpPanels, Format, lpHeader, lpFileName, lpStatus);
+}
+
+void __stdcall C_SavePanelMeshMemA(
+    int PanelCount,
+    TPanel *lpPanels,
+    int Format,
+    void *lpHeader,
+    TOrcFxAPIHandle *lpBufferHandle,
+    int64_t *lpBufferLen,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(int PanelCount, TPanel *lpPanels, int Format, void *lpHeader, TOrcFxAPIHandle *lpBufferHandle, int64_t *lpBufferLen, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_SavePanelMeshMemA");
+    proc(PanelCount, lpPanels, Format, lpHeader, lpBufferHandle, lpBufferLen, lpStatus);
+}
+
+void __stdcall C_SavePanelMeshMemW(
+    int PanelCount,
+    TPanel *lpPanels,
+    int Format,
+    void *lpHeader,
+    TOrcFxAPIHandle *lpBufferHandle,
+    int64_t *lpBufferLen,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(int PanelCount, TPanel *lpPanels, int Format, void *lpHeader, TOrcFxAPIHandle *lpBufferHandle, int64_t *lpBufferLen, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_SavePanelMeshMemW");
+    proc(PanelCount, lpPanels, Format, lpHeader, lpBufferHandle, lpBufferLen, lpStatus);
+}
+
 void __stdcall C_SaveSimulationA(
     TOrcFxAPIHandle ModelHandle,
     LPCSTR lpSimFileName,
@@ -2297,6 +2363,19 @@ void __stdcall C_CreateBitmapCanvas(
     proc(Width, Height, lpCanvasHandle, lpStatus);
 }
 
+void __stdcall C_CreateBitmapCanvasClone(
+    TOrcFxAPIHandle SourceCanvasHandle,
+    TOrcFxAPIHandle *lpClonedCanvasHandle,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(TOrcFxAPIHandle SourceCanvasHandle, TOrcFxAPIHandle *lpClonedCanvasHandle, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_CreateBitmapCanvasClone");
+    proc(SourceCanvasHandle, lpClonedCanvasHandle, lpStatus);
+}
+
 void __stdcall C_CreateModel3DViewBitmap(
     TOrcFxAPIHandle ModelHandle,
     const TViewParameters *lpViewParameters,
@@ -2311,6 +2390,18 @@ void __stdcall C_CreateModel3DViewBitmap(
     proc(ModelHandle, lpViewParameters, lpBitmap, lpStatus);
 }
 
+void __stdcall C_CreateViewFilter(
+    TOrcFxAPIHandle *lpFilterHandle,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(TOrcFxAPIHandle *lpFilterHandle, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_CreateViewFilter");
+    proc(lpFilterHandle, lpStatus);
+}
+
 void __stdcall C_DestroyBitmapCanvas(
     TOrcFxAPIHandle CanvasHandle,
     int *lpStatus
@@ -2321,6 +2412,18 @@ void __stdcall C_DestroyBitmapCanvas(
     if (proc == NULL)
         proc = (Proc)GetProcAddress(_Module, "C_DestroyBitmapCanvas");
     proc(CanvasHandle, lpStatus);
+}
+
+void __stdcall C_DestroyViewFilter(
+    TOrcFxAPIHandle FilterHandle,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(TOrcFxAPIHandle FilterHandle, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_DestroyViewFilter");
+    proc(FilterHandle, lpStatus);
 }
 
 void __stdcall C_DrawModel3DViewToBitmapCanvas(
@@ -2348,6 +2451,18 @@ void __stdcall C_GetDefaultViewParameters(
     if (proc == NULL)
         proc = (Proc)GetProcAddress(_Module, "C_GetDefaultViewParameters");
     proc(ModelHandle, lpViewParameters, lpStatus);
+}
+
+int __stdcall C_GetSimulationDrawFrequencyDomainSolveType(
+    TOrcFxAPIHandle ModelHandle,
+    int *lpStatus
+)
+{
+    typedef int (__stdcall *Proc)(TOrcFxAPIHandle ModelHandle, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_GetSimulationDrawFrequencyDomainSolveType");
+    return proc(ModelHandle, lpStatus);
 }
 
 double __stdcall C_GetSimulationDrawTime(
@@ -2491,17 +2606,62 @@ void __stdcall C_SaveModel3DViewMetafileToFileW(
     proc(ModelHandle, lpViewParameters, lpFileName, lpStatus);
 }
 
-void __stdcall C_SetSimulationDrawTime(
+void __stdcall C_SetSimulationDrawFrequencyDomainSolveType(
     TOrcFxAPIHandle ModelHandle,
-    double SimulationDrawTime,
+    int Value,
     int *lpStatus
 )
 {
-    typedef void (__stdcall *Proc)(TOrcFxAPIHandle ModelHandle, double SimulationDrawTime, int *lpStatus);
+    typedef void (__stdcall *Proc)(TOrcFxAPIHandle ModelHandle, int Value, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_SetSimulationDrawFrequencyDomainSolveType");
+    proc(ModelHandle, Value, lpStatus);
+}
+
+void __stdcall C_SetSimulationDrawTime(
+    TOrcFxAPIHandle ModelHandle,
+    double Value,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(TOrcFxAPIHandle ModelHandle, double Value, int *lpStatus);
     static Proc proc = NULL;
     if (proc == NULL)
         proc = (Proc)GetProcAddress(_Module, "C_SetSimulationDrawTime");
-    proc(ModelHandle, SimulationDrawTime, lpStatus);
+    proc(ModelHandle, Value, lpStatus);
+}
+
+void __stdcall C_ViewFilterAddItemA(
+    TOrcFxAPIHandle FilterHandle,
+    LPCSTR lpPropertyName,
+    LPCSTR lpAction,
+    LPCSTR lpNamePattern,
+    LPCSTR lpTypePattern,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(TOrcFxAPIHandle FilterHandle, LPCSTR lpPropertyName, LPCSTR lpAction, LPCSTR lpNamePattern, LPCSTR lpTypePattern, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_ViewFilterAddItemA");
+    proc(FilterHandle, lpPropertyName, lpAction, lpNamePattern, lpTypePattern, lpStatus);
+}
+
+void __stdcall C_ViewFilterAddItemW(
+    TOrcFxAPIHandle FilterHandle,
+    LPCWSTR lpPropertyName,
+    LPCWSTR lpAction,
+    LPCWSTR lpNamePattern,
+    LPCWSTR lpTypePattern,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(TOrcFxAPIHandle FilterHandle, LPCWSTR lpPropertyName, LPCWSTR lpAction, LPCWSTR lpNamePattern, LPCWSTR lpTypePattern, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_ViewFilterAddItemW");
+    proc(FilterHandle, lpPropertyName, lpAction, lpNamePattern, lpTypePattern, lpStatus);
 }
 
 void __stdcall C_CalculateMooringStiffness(
@@ -3345,6 +3505,21 @@ void __stdcall C_GetFrequencyDomainProcessComponents2(
     if (proc == NULL)
         proc = (Proc)GetProcAddress(_Module, "C_GetFrequencyDomainProcessComponents2");
     proc(ModelHandle, lpCount, lpFrequencyDomainProcessComponents, lpStatus);
+}
+
+void __stdcall C_GetFrequencyDomainProcessComponents3(
+    TOrcFxAPIHandle ModelHandle,
+    int FrequencyDomainSolveType,
+    int *lpCount,
+    TFrequencyDomainProcessComponent2 *lpFrequencyDomainProcessComponents,
+    int *lpStatus
+)
+{
+    typedef void (__stdcall *Proc)(TOrcFxAPIHandle ModelHandle, int FrequencyDomainSolveType, int *lpCount, TFrequencyDomainProcessComponent2 *lpFrequencyDomainProcessComponents, int *lpStatus);
+    static Proc proc = NULL;
+    if (proc == NULL)
+        proc = (Proc)GetProcAddress(_Module, "C_GetFrequencyDomainProcessComponents3");
+    proc(ModelHandle, FrequencyDomainSolveType, lpCount, lpFrequencyDomainProcessComponents, lpStatus);
 }
 
 void __stdcall C_GetFrequencyDomainResultsA(

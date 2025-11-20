@@ -441,12 +441,19 @@ private:
     {
         int status;
         C_GetDataDouble(general.getHandle(), L"NorthDirection", 0, &azimuthNorth, &status);
-        if (status == stOK)
-            return;
+
+        // for 11.5 and earlier we identify that north is not defined this way
         if (status == stValueNotAvailable)
         {
-            // assume 180 deg, so 0 deg wind is from North
             azimuthNorth = 180;
+            return;
+        }
+
+        if (status == stOK)
+        {
+            // for 11.6 and later we identify that north is not defined this way
+            if (azimuthNorth == OrcinaDefaultReal())
+                azimuthNorth = 180;
             return;
         }
 

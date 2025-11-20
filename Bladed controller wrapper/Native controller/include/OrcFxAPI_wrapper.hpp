@@ -20,8 +20,8 @@ protected:
     Uncopyable() {}
     ~Uncopyable() {}
 private:
-    Uncopyable(const Uncopyable &);
-    Uncopyable& operator=(const Uncopyable&);
+    Uncopyable(const Uncopyable&) = delete;
+    Uncopyable& operator=(const Uncopyable&) = delete;
 };
 
 class OrcFxAPI_error : public std::runtime_error
@@ -53,10 +53,10 @@ class ObjectExtra
 {
 public:
     ObjectExtra()
-        : environmentPos(), linePoint(), nodeNum(), arclength(), radialPos(), theta(), wingName(),
+        : environmentPos(), linePoint(), nodeNum(), arclength(), radialPos(), r(), theta(), wingName(),
         clearanceLineName(), winchConnectionPoint(), rigidBodyPos(), externalResultText(),
         disturbanceVesselName(), supportIndex(), supportedLineName(), bladeIndex(), elementIndex(),
-        seaSurfaceScalingFactor() {};
+        seaSurfaceScalingFactor(), frequencyDomainSolveType(){};
     static ObjectExtra Environment(double X, double Y, double Z);
     static ObjectExtra Environment(const TVector& pos);
     static ObjectExtra Buoy(double X, double Y, double Z);
@@ -89,6 +89,7 @@ public:
     int nodeNum;
     double arclength;
     int radialPos;
+    double r;
     double theta;
     std::wstring wingName;
     std::wstring clearanceLineName;
@@ -101,6 +102,7 @@ public:
     int bladeIndex;
     int elementIndex;
     double seaSurfaceScalingFactor;
+    int frequencyDomainSolveType;
 };
 
 class VarDetails
@@ -164,7 +166,8 @@ public:
         drawOutOfBalanceForces(), drawNodeAxes(), graphicsMode(), fileFormat(), viewGamma(),
         relativeToObjectHandle(), disturbanceVesselHandle(), disturbancePosition(), shadedFillMode(),
         drawNameLabels(), drawConnections(), labelScale(), drawOrigins(), monochromeOutput(),
-        addDetailsToOutput(), jpegCompressionQuality(), pixelsPerInch(), drawSupportCylinderAxes() {};
+        addDetailsToOutput(), jpegCompressionQuality(), pixelsPerInch(), drawSupportCylinderAxes(),
+        drawTrails(), filterHandle() {};
     ViewParameters(const TViewParameters& params)
         : viewSize(params.ViewSize), viewAzimuth(params.ViewAzimuth), viewElevation(params.ViewElevation),
         viewCentre(params.ViewCentre), height(params.Height), width(params.Width),
@@ -178,7 +181,8 @@ public:
         drawNameLabels(params.DrawNameLabels), drawConnections(params.DrawConnections), labelScale(params.LabelScale),
         drawOrigins(params.DrawOrigins), monochromeOutput(params.MonochromeOutput),
         addDetailsToOutput(params.AddDetailsToOutput), jpegCompressionQuality(params.JpegCompressionQuality),
-        pixelsPerInch(params.PixelsPerInch), drawSupportCylinderAxes(params.DrawSupportCylinderAxes) {};
+        pixelsPerInch(params.PixelsPerInch), drawSupportCylinderAxes(params.DrawSupportCylinderAxes),
+        drawTrails(params.DrawTrails), filterHandle(params.FilterHandle) {};
     operator const TViewParameters () const;
 public:
     double viewSize;
@@ -211,6 +215,8 @@ public:
     int jpegCompressionQuality;
     int pixelsPerInch;
     BOOL drawSupportCylinderAxes;
+    BOOL drawTrails;
+    TOrcFxAPIHandle filterHandle;
 };
 
 class HandleObject
@@ -221,6 +227,18 @@ protected:
     HandleObject(TOrcFxAPIHandle handle) : handle(handle) {};
 protected:
     TOrcFxAPIHandle handle;
+};
+
+class ViewFilter : public HandleObject, private Uncopyable
+{
+public:
+    ViewFilter(TOrcFxAPIHandle filterHandle);
+    ViewFilter();
+    ~ViewFilter();
+    void Add(const std::wstring& propertyName, const std::wstring& action, const std::wstring& namePattern, const std::wstring& typePattern);
+private:
+    bool ownsHandle;
+    void init(TOrcFxAPIHandle filterHandle, bool ownsFilterHandle);
 };
 
 class DataObject : public HandleObject
@@ -281,6 +299,8 @@ public:
     int getType() const { return type; };
     bool tryGetTag(const std::wstring name, std::wstring &value) const;
     std::wstring getTag(const std::wstring name) const;
+    INT_PTR getNamedValue(const std::wstring name) const;
+    void setNamedValue(const std::wstring name, const INT_PTR value);
     std::vector<std::wstring> Vars(int resultType, const ObjectExtra& objectExtra) const;
     std::vector<std::wstring> Vars(const ObjectExtra& objectExtra) const;
     std::vector<std::wstring> Vars(int resultType) const;
@@ -289,10 +309,12 @@ public:
     std::vector<Orcina::VarDetails> VarDetails(const ObjectExtra& objectExtra) const;
     std::vector<Orcina::VarDetails> VarDetails(int resultType) const;
     std::vector<Orcina::VarDetails> VarDetails() const;
+    std::vector<double> TimeHistory(const std::wstring& varName, const TPeriod* period, const TObjectExtra2* objectExtra) const;
     std::vector<double> TimeHistory(const std::wstring& varName, const Period& period, const ObjectExtra& objectExtra) const;
     std::vector<double> TimeHistory(const std::wstring& varName, const ObjectExtra& objectExtra) const;
     std::vector<double> TimeHistory(const std::wstring& varName, const Period& period) const;
     std::vector<double> TimeHistory(const std::wstring& varName) const;
+    double StaticResult(const std::wstring& varName, const TObjectExtra2* objectExtra) const;
     double StaticResult(const std::wstring& varName, const ObjectExtra& objectExtra) const;
     double StaticResult(const std::wstring& varName) const;
     std::vector<double> RangeGraphXaxis(const std::wstring& varName, const ArclengthRange& arclengthRange, const Period& period) const;
@@ -310,7 +332,7 @@ public:
 private:
     OrcaFlexObject(TOrcFxAPIHandle modelHandle, TOrcFxAPIHandle handle, int type)
         : DataObject(handle), modelHandle(modelHandle), type(type) {};
-    OrcaFlexObject CreateClone(const std::wstring& name, TOrcFxAPIHandle modelHandle) const;
+    OrcaFlexObject CreateClone(const std::wstring& name, TOrcFxAPIHandle destModelHandle) const;
     static TOrcFxAPIHandle getModelHandle(TOrcFxAPIHandle handle);
     static int getType(TOrcFxAPIHandle handle);
     int getVarID(const std::wstring& varName) const;
@@ -319,8 +341,6 @@ private:
     std::vector<std::wstring> Vars(int resultType, const TObjectExtra2* objectExtra) const;
     std::vector<Orcina::VarDetails> VarDetails(int resultType, const TObjectExtra2* objectExtra) const;
     int getNumOfSamples(const TPeriod* period) const;
-    std::vector<double> TimeHistory(const std::wstring& varName, const TObjectExtra2* objectExtra, const TPeriod* period) const;
-    double StaticResult(const std::wstring& varName, const TObjectExtra2* objectExtra) const;
     std::vector<double> RangeGraphXaxis(const std::wstring& varName, const TArclengthRange* arclengthRange, const TPeriod* period) const;
     RangeGraphValues RangeGraph(const std::wstring& varName, const TPeriod* period, const TObjectExtra2* objectExtra, const TArclengthRange* arclengthRange) const;
 private:
@@ -363,6 +383,8 @@ public:
     OrcaFlexObject objectCalled(const std::wstring& name) const;
     OrcaFlexObject getGeneral() const;
     OrcaFlexObject getEnvironment() const;
+    INT_PTR getNamedValue(const std::wstring name) const;
+    void setNamedValue(const std::wstring name, const INT_PTR value);
     int getThreadCount() const;
     void setThreadCount(int value);
     void GetRecommendedTimeSteps(double& innerTimeStep, double& outerTimeStep) const;
@@ -371,12 +393,15 @@ public:
     double getSimulationCurrentTime() const;
     double getSimulationTimeToGo() const;
     bool getSimulationComplete() const;
+    int getSimulationDrawFrequencyDomainSolveType() const;
+    void setSimulationDrawFrequencyDomainSolveType(int value);
     double getSimulationDrawTime() const;
     void setSimulationDrawTime(double value);
     ViewParameters getDefaultViewParameters() const;
     void SaveModelView(const std::wstring& fileName, const ViewParameters& viewParameters) const;
+    std::vector<unsigned char> SaveModelViewMem(const ViewParameters& viewParameters) const;
     void SaveModelViewMetafile(const std::wstring& fileName, const ViewParameters& viewParameters) const;
-    HBITMAP GetModelView(const std::wstring& fileName, const ViewParameters& viewParameters) const;
+    HBITMAP GetModelView(const ViewParameters& viewParameters) const;
     void Reset();
     void Clear();
     void LoadData(const std::wstring& fileName);
@@ -385,7 +410,9 @@ public:
     void SaveSimulation(const std::wstring& fileName) const;
     std::vector<std::wstring> getWarnings() const;
     void CalculateStatics();
+    void UseCalculatedPositions(bool setLinesToUserSpecifiedStartingShape, double simulationTime);
     void UseCalculatedPositions(bool setLinesToUserSpecifiedStartingShape);
+    void UseCalculatedPositions(double simulationTime);
     void UseCalculatedPositions();
     void RunSimulation(int autoSaveIntervalMinutes, const std::wstring& autoSaveFileName);
     void RunSimulation();

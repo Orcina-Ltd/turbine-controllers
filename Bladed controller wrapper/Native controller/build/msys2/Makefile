@@ -18,16 +18,17 @@ flags = -c -O3 -Wall -I../../include -DUNICODE -D_UNICODE
 
 all: $(outdir)/BladedControllerWrapper.dll
 
+output:
+	mkdir -p $(outdir)
+
 $(outdir)/BladedControllerWrapper.dll: $(objects) $(def)
 	g++ $(objects) $(def) -lm -lole32 -shared -static -o $@ -Wl,--enable-stdcall-fixup -Wl,--out-implib,$@.a
 	strip --strip-unneeded $@
 
-$(outdir)/%.o: ../../src/%.c $(includes)
-	mkdir -p $(outdir)
+$(outdir)/%.o: ../../src/%.c $(includes) | output
 	gcc $(flags) $< -o $@
 
-$(outdir)/%.o: ../../src/%.cpp $(includes)
-	mkdir -p $(outdir)
+$(outdir)/%.o: ../../src/%.cpp $(includes) | output
 	g++ $(flags) $< -o $@
 
 clean:
