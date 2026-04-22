@@ -6,9 +6,19 @@ import ctypes
 import tempfile
 import shutil
 import json
+from collections import namedtuple
+
+
+kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+LoadLibraryW = kernel32.LoadLibraryW
+LoadLibraryW.restype = ctypes.c_void_p
+LoadLibraryW.argtypes = (ctypes.c_wchar_p,)
+FreeLibrary = kernel32.FreeLibrary
+FreeLibrary.restype = ctypes.c_bool
+FreeLibrary.argtypes = (ctypes.c_void_p,)
 
 StringLength = 1024
-encoding = f"cp{ctypes.windll.kernel32.GetACP()}"
+encoding = f"cp{kernel32.GetACP()}"
 
 
 def getBooleanTagValue(modelObject, name):
@@ -35,18 +45,14 @@ def suppressRangeJumps(previous, this):
         return this
 
 
-class ActuatorState(object):
-    def __init__(self, x, xdot, xdotdot):
-        self.x = x
-        self.xdot = xdot
-        self.xdotdot = xdotdot
+ActuatorState = namedtuple("ActuatorState", ["x", "xdot", "xdotdot"])
 
 
 class Actuator(object):
     def __init__(self, omega, gamma, dt):
         self.omega = omega
         self.gamma = gamma
-        self.dt = dt  # assumes contant time step
+        self.dt = dt  # assumes constant time step
         self.uprev = 0.0
         # assume zero inital state (i.e. can not start from a half run sim)
         self.prevState = ActuatorState(0.0, 0.0, 0.0)
@@ -85,11 +91,18 @@ class Actuator(object):
 
 class Controller(object):
     def __init__(self, info):
+        # set early so __del__ is safe even if construction fails before we've
+        # loaded the DLL
+        self.shutdownDone = False
+        self.libHandle = None
+        self.firstCall = True
+        self.DLLCanBeShared = True
+        self.DLLfileName = None
+
         turbine = info.ModelObject
         model = info.Model
         general = model.general
         modelDirectory = info.ModelDirectory
-        self.kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
         if turbine.DataNameValid("PitchControlMode"):  # if v11.0a or later
             if turbine.PitchControlMode == "Common":
@@ -112,7 +125,6 @@ class Controller(object):
                 json.loads(self.accelRefPosRrtTurbine)
             )
         self.lastupdateTime = -numpy.inf
-        self.firstCall = True
         self.simulationStartTime = model.simulationStartTime
         self.momentScaleFactor = turbine.UnitsConversionFactor("FF.LL")
         self.velocityScaleFactor = turbine.UnitsConversionFactor("LL.TT^-1")
@@ -121,13 +133,16 @@ class Controller(object):
         self.yaw = 0.0
         self.yawDot = 0.0
 
+        if hasattr(general, "GetDataBool"):
+            getDataBool = lambda dataName : general.GetDataBool(dataName, -1)
+        else:
+            getDataBool = lambda dataName : OrcFxAPI.HelperMethods.GetDataBoolean(general.handle, dataName, 0)
+
         if general.DynamicsSolutionMethod == "Explicit time domain":
             self.dt = general.ActualOuterTimeStep
         elif (
             general.DynamicsSolutionMethod == "Implicit time domain"
-            and not OrcFxAPI.HelperMethods.GetDataBoolean(
-                general.handle, "ImplicitUseVariableTimeStep", 0
-            )
+            and not getDataBool("ImplicitUseVariableTimeStep")
         ):
             self.dt = general.ImplicitConstantTimeStep
         else:
@@ -149,10 +164,7 @@ class Controller(object):
 
         try:
             # load with LoadLibraryW so we can use FreeLibrary before we del the DLL
-            LoadLibrary = self.kernel32.LoadLibraryW
-            LoadLibrary.restype = ctypes.c_void_p
-            LoadLibrary.argtypes = (ctypes.c_wchar_p,)
-            self.libHandle = LoadLibrary(DLLfileName)
+            self.libHandle = LoadLibraryW(DLLfileName)
             if self.libHandle is None:
                 raise ctypes.WinError(ctypes.get_last_error())
 
@@ -186,22 +198,29 @@ class Controller(object):
             ).encode(encoding)
             self.avcMsg = (ctypes.c_char * StringLength)()
         except BaseException:
-            self.unloadDLL()
+            self.shutdown()
             raise
 
-    def __del__(self):
+    def shutdown(self):
+        if self.shutdownDone:
+            return
+        self.shutdownDone = True
         if not self.firstCall:
-            self.finalise()
+            # iStatus = -1 tells DISCON the simulation has ended
+            self.setRecord(1, -1)
+            self.callDLL()
         self.unloadDLL()
+
+    def __del__(self):
+        self.shutdown()
 
     def unloadDLL(self):
         if self.libHandle is not None:
-            FreeLibrary = self.kernel32.FreeLibrary
-            FreeLibrary.restype = ctypes.c_bool
-            FreeLibrary.argtypes = (ctypes.c_void_p,)
             FreeLibrary(self.libHandle)
-        if not self.DLLCanBeShared:
+            self.libHandle = None
+        if not self.DLLCanBeShared and self.DLLfileName is not None:
             os.remove(self.DLLfileName)
+            self.DLLfileName = None
 
     def getRecord(self, index):
         # convert between 1-based FORTRAN indexing and 0-based numpy indexing
@@ -242,7 +261,7 @@ class Controller(object):
                 addToSpec(turbine, varName, OrcFxAPI.oeTurbine(bladeIndex + 1))
 
         oeEnv = OrcFxAPI.oeEnvironment(info.InstantaneousCalculationData.TurbinePosition)
-        addToSpec(info.Model.environment, "Wind direction", oeEnv),
+        addToSpec(info.Model.environment, "Wind direction", oeEnv)
         addToSpec(turbine, "Azimuth")
         addToSpec(turbine, "Connection Lx moment")
         addToSpec(turbine, "Connection Ly moment")
@@ -273,6 +292,9 @@ class Controller(object):
         self.setRecord(61, info.InstantaneousCalculationData.BladeCount)
 
         # blade pitch
+        # InstantaneousCalculationData values use the OrcaFlex internal
+        # convention (radians); time-history values use the user-facing
+        # convention (degrees) so need numpy.radians to match what DISCON wants.
         if turbine.PitchControlMode == "Common":
             pitch = info.InstantaneousCalculationData.BladePitchAngle
             self.setRecord(28, 0)  # 0 for common control
@@ -418,13 +440,6 @@ class Controller(object):
         self.yawDot = self.getRecord(48)
         self.yaw += self.yawDot * self.dt
 
-    def finalise(self):
-        # iStatus
-        self.setRecord(1, -1)
-
-        # call DISCON
-        self.callDLL()
-
 
 class BladedController(object):
     def Initialise(self, info):
@@ -438,6 +453,7 @@ class BladedController(object):
     def Finalise(self, info):
         key = info.ModelObject.handle.value
         if key in info.Workspace:
+            info.Workspace[key].shutdown()
             del info.Workspace[key]
 
     def Calculate(self, info):

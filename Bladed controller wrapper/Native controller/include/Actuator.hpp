@@ -1,10 +1,7 @@
 #pragma once
 
-class ActuatorState
+struct ActuatorState
 {
-public:
-    ActuatorState(double x, double xdot, double xdotdot);
-public:
     double x;
     double xdot;
     double xdotdot;

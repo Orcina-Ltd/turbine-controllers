@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <sstream>
 #include <cmath>
+#include <numbers>
 #include "OrcFxAPI.h"
 
 using namespace Orcina;

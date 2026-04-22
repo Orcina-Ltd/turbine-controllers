@@ -6,6 +6,7 @@
 #include <sstream>
 #include <cmath>
 #include <filesystem>
+#include <memory>
 #include "nlohmann/json.hpp"
 #include "OrcFxAPI.h"
 #include "OrcFxAPI_wrapper.hpp"
@@ -58,8 +59,6 @@ public:
         useActuator = getBoolFromTag(turbine, L"UseActuator");
 
         setAccelRefPosRrtTurbine();
-
-        lastUpdateTime = -std::numeric_limits<double>::infinity();
 
         simulationStartTime = model.getSimulationStartTime();
 
@@ -329,13 +328,13 @@ private:
         return result;
     }
 
-    bool convertTo8bitText(const std::wstring input, char* output, size_t outputLen)
+    bool convertTo8bitText(const std::wstring& input, char* output, size_t outputLen)
     {
         BOOL usedDefaultChar;
         return WideCharToMultiByte(GetACP(), 0, input.c_str(), input.size(), output, outputLen, nullptr, &usedDefaultChar) && !usedDefaultChar;
     }
 
-    bool tryGetBoolFromTag(OrcaFlexObject& modelObject, const std::wstring name, bool& value)
+    bool tryGetBoolFromTag(OrcaFlexObject& modelObject, const std::wstring& name, bool& value)
     {
         std::wstring tagValue;
         bool result = modelObject.tryGetTag(name, tagValue);
@@ -358,15 +357,15 @@ private:
         return false;
     }
 
-    bool getBoolFromTag(OrcaFlexObject& modelObject, const std::wstring name)
+    bool getBoolFromTag(OrcaFlexObject& modelObject, const std::wstring& name)
     {
         bool result;
-        if (!tryGetBoolFromTag(turbine, name, result))
+        if (!tryGetBoolFromTag(modelObject, name, result))
             throw std::runtime_error("Unrecognised value for " + utf16ToUtf8(name) + " tag: must be False or True.");
         return result;
     }
 
-    double getDoubleFromTag(OrcaFlexObject& modelObject, const std::wstring name)
+    double getDoubleFromTag(OrcaFlexObject& modelObject, const std::wstring& name)
     {
         std::wstring wtext;
         if (!modelObject.tryGetTag(name, wtext))
@@ -537,7 +536,7 @@ private:
     bool dllCanBeShared = false;
     bool useActuator = false;
     TVector accelRefPosRrtTurbine = { 0 };
-    double lastUpdateTime = std::numeric_limits<double>::quiet_NaN();
+    double lastUpdateTime = -std::numeric_limits<double>::infinity();
     bool firstCall = true;
     double simulationStartTime = std::numeric_limits<double>::quiet_NaN();
     double momentScaleFactor = std::numeric_limits<double>::quiet_NaN();
@@ -585,9 +584,10 @@ void __stdcall BladedController(TExtFnInfo& info)
                 controller = reinterpret_cast<Controller*>(controllerPtr);
             else
             {
+                std::unique_ptr<Controller> newController;
                 try
                 {
-                    controller = new Controller(info);
+                    newController = std::make_unique<Controller>(info);
                 }
                 catch(const std::exception& exc)
                 {
@@ -598,10 +598,11 @@ void __stdcall BladedController(TExtFnInfo& info)
                     return;
                 }
 
-                controllerPtr = reinterpret_cast<INT_PTR>(controller);
+                controllerPtr = reinterpret_cast<INT_PTR>(newController.get());
                 C_SetNamedValue(info.ObjectHandle, controllerKeyName, controllerPtr, &status);
                 if (!checkStatus(info, L"Call to C_SetNamedValue from eaInitialise", status))
-                    return;
+                    return; // newController destroys the controller as we unwind
+                controller = newController.release();
             }
             controller->addref();
             info.lpData = static_cast<void*>(controller);
@@ -612,11 +613,11 @@ void __stdcall BladedController(TExtFnInfo& info)
             Controller *controller = static_cast<Controller*>(info.lpData);
             if (controller->decref() == 0)
             {
+                std::unique_ptr<Controller> owned(controller); // delete on scope exit regardless of C_SetNamedValue outcome
                 int status;
                 C_SetNamedValue(info.ObjectHandle, controllerKeyName, 0, &status);
                 if (!checkStatus(info, L"Call to C_SetNamedValue from eaFinalise", status))
                     return;
-                delete controller;
             }
             break;
         }

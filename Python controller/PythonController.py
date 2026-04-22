@@ -1,11 +1,11 @@
 import numpy
 import math
 import json
-import os
+from collections import namedtuple
 
 """
 This module gives examples of Python external functions implementing control systems for use with the OrcaFlex Turbine object.
-The contoller is based on the controller developed by NREL for the 5MW reference turbine  https://www.nrel.gov/docs/fy09osti/38060.pdf
+The controller is based on the controller developed by NREL for the 5MW reference turbine  https://www.nrel.gov/docs/fy09osti/38060.pdf
 The following optional tags, on the turbine object, can be used to modify the behaviour:
 
 FloatingSystem : If given and set to True then the modifications proposed in https://www.nrel.gov/docs/fy10osti/47535.pdf are made to the controller.
@@ -31,20 +31,16 @@ def getBooleanTagValue(modelObject, name):
         raise Exception("Unrecognised value for {}: {}".format(name, value))
 
 
-class Actuator(object):
-    def state(self, x, xdot, xdotdot):
-        return {
-            "x": x,
-            "xdot": xdot,
-            "xdotdot": xdotdot,
-        }
+ActuatorState = namedtuple("ActuatorState", ["x", "xdot", "xdotdot"])
 
+
+class Actuator(object):
     def __init__(self, omega, gamma, dt):
         self.omega = omega
         self.gamma = gamma
-        self.dt = dt  # assumes contant time step
+        self.dt = dt  # assumes constant time step
         self.uprev = 0.0
-        self.prevState = self.state(0.0, 0.0, 0.0)
+        self.prevState = ActuatorState(0.0, 0.0, 0.0)
         beta = math.sqrt(1.0 - gamma**2)
         self.g = (
             math.exp(-gamma * omega * dt) * math.sin(beta * omega * dt) / (beta * omega)
@@ -58,9 +54,9 @@ class Actuator(object):
         f, g = self.f, self.g
         omegaSqr = self.omega**2
         gamma2Omega = 2.0 * self.gamma * self.omega
-        xprev, xdotprev = self.prevState["x"], self.prevState["xdot"]
+        xprev, xdotprev = self.prevState.x, self.prevState.xdot
         udot = (u - self.uprev) / self.dt
-        stateNow = self.state(
+        stateNow = ActuatorState(
             f * xprev
             + g * xdotprev
             + (2.0 * self.gamma * (f - 1.0) / self.omega + self.dt - g) * udot
@@ -75,7 +71,7 @@ class Actuator(object):
         )
         self.prevState = stateNow
         self.uprev = u
-        return stateNow["x"], stateNow["xdot"], stateNow["xdotdot"]
+        return stateNow.x, stateNow.xdot, stateNow.xdotdot
 
 
 class ControllerEngine(object):
@@ -95,13 +91,16 @@ class ControllerEngine(object):
         else:
             checkInitialPitch(turbine.InitialPitch)
 
+        if hasattr(general, "GetDataBool"):
+            getDataBool = lambda dataName : general.GetDataBool(dataName, -1)
+        else:
+            getDataBool = lambda dataName : OrcFxAPI.HelperMethods.GetDataBoolean(general.handle, dataName, 0)
+
         if general.DynamicsSolutionMethod == "Explicit time domain":
             self.dt = general.ActualOuterTimeStep
         elif (
             general.DynamicsSolutionMethod == "Implicit time domain"
-            and not OrcFxAPI.HelperMethods.GetDataBoolean(
-                general.handle, "ImplicitUseVariableTimeStep", 0
-            )
+            and not getDataBool("ImplicitUseVariableTimeStep")
         ):
             self.dt = general.ImplicitConstantTimeStep
         else:
@@ -109,9 +108,7 @@ class ControllerEngine(object):
 
         self.useActuator = getBooleanTagValue(turbine, "UseActuator")
         self.FloatingSystem = getBooleanTagValue(turbine, "FloatingSystem")
-        self.simulationStartTime = model.simulationStartTime
         self.momentScaleFactor = turbine.UnitsConversionFactor("FF.LL")
-        self.velocityScaleFactor = turbine.UnitsConversionFactor("LL.TT^-1")
 
         if self.useActuator:
             omega = float(turbine.tags.ActuatorOmega)
@@ -193,7 +190,7 @@ class ControllerEngine(object):
             self.torque = stateData[8]
             if self.useActuator:
                 self.actuator.uprev = stateData[9]
-                self.actuator.prevState = stateData[10]
+                self.actuator.prevState = ActuatorState(*stateData[10])
 
     def storeState(self, info):
         toDump = [

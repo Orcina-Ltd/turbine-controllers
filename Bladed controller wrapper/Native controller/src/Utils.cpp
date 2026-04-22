@@ -1,4 +1,5 @@
 #include "Utils.hpp"
+#include <algorithm>
 #include <charconv>
 
 void print(const std::wstring text)
@@ -46,15 +47,17 @@ std::wstring utf8ToUtf16(const std::string value)
 
 std::wstring trim(const std::wstring& str)
 {
-    std::wstring result = str;
-    result.erase(result.find_last_not_of(' ') + 1);
-    result.erase(0, result.find_first_not_of(' '));
-    return result;
+    // treat any character <= space (ASCII 0x20) as whitespace, covering
+    // tab/CR/LF and other control characters in one hit
+    auto notSpace = [](wchar_t c) { return c > L' '; };
+    auto first = std::find_if(str.begin(), str.end(), notSpace);
+    auto last = std::find_if(str.rbegin(), str.rend(), notSpace).base();
+    return first < last ? std::wstring(first, last) : std::wstring();
 }
 
 double radians(const double degrees)
 {
-    return degrees * (M_PI / 180);
+    return degrees * (std::numbers::pi / 180);
 }
 
 TVector crossProd(const TVector& v1, const TVector& v2)
